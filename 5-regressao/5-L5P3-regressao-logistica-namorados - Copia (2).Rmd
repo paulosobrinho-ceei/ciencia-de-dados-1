@@ -31,7 +31,7 @@ Nesta análise envolvendo Regressão Logística Múlipla foi utilizado dados rom
 
 No qual o campo  dec diz se houve combinação entre os dois participantes do encontro, ou seja, se os mesmo gostariam encontrarem-se novamente depois, conforme descrito as responstas no link <https://github.com/nazareno/ciencia-de-dados-1/blob/master/5-regressao/speed-dating/speed-dating2.csv>. Para a realização da exploração das informações serão extraídos os seguintes campos:
 
-a) dec, que diz se houve match entre os dois participantes do encontro;
+a) dec`, que diz se houve match entre os dois participantes do encontro;
 b) attr : quão atraente p1 achou p2;
 c) intel : quão inteligente p1 achou p2;
 d)int_corr : correlação entre os interesses de p1 e p2;
@@ -87,12 +87,6 @@ A seguir são apresentados a visulizar referente a distribuição  das informaç
 summary(dados_logistica)
 ```
 
----
-
-A seguir são apresentados os cálculos envovendo as os respectivos resultados na em tabelas para melhor comprensão:
-
----
-
 
 ```{r}
 bm <- glm(dec ~ attr + intel + int_corr + sinc, 
@@ -137,23 +131,20 @@ tidy(bm, conf.int = TRUE, exponentiate = TRUE) %>%
   geom_linerange() + 
   coord_flip()
 ```
-O modelo Logit usado tem como variável dependente decque é uma variável binária, assumindo o valor 1 para o caso de Match e 0 para o caso de não Match. As variáveis explicativas escolhidas foram: attr (representa quão atraente p1 achou p2); intel (representa quão inteligente p1 achou p2); int_corr (representa correlação entre os interesses de p1 e p2) e sinc (representa quão sincero p1 achou p2). Essas são as variáveis escolhidas para investigar os fatores relevantes na chance do casal ter um match
-(dec), que diz se houve match entre os dois participantes do encontro, isto é, se ambos disseram que gostariam de se encontrar novamente depois.
 
-Incialmente, realizou-se a regressão logística por meio do método de máxima verossimilhança. E as tabelas mostram os coefientes estimados da função, bem como seus valores em exponenciais.
-
-Analisando o efeitos sobre ODDS de cada variáveis independente, tem-se que todas as variáveis explicativas mostraram uma relação positiva entre o ODDS e as variáveis explicativas. Isto é, todos os efeitos foram positivos, de forma que um aumento de uma unidade nos fatores explicativos provocam um aumento no ODDS.
-
-Um aumento de uma unidade na variável Attr, o ODDs é multiplicado por aproximadamente 1.9373, ou seja, a proporção entre a probabilidade de Match quando attr aumenta em uma unidade, e a probabilidade de não Match é 1.9373.Esse impacto na população pode-se ser visto por meio do intervalo de confiança para (B1), que é o parâmetro populacional. Isto é, o impacto no ODDS devido um aumento de uma unidade em attr na população  está dentro do intervalo de confiança [1.847200909	2.03433850] com probabilidade de 95%IC.
-
-Um aumento de uma unidade na variável intel, o ODDs é multiplicado por aproximadamente 1.0557, ou seja, a proporção entre a probabilidade de Match, quando intel aumenta em uma unidade, e a probabilidade de não Match é 1.0557.Esse impacto na população pode-se ser visto por meio do intervalo de confiança para (B2), que é o parâmetro populacional. Isto é, o impacto no ODDS devido um aumento de uma unidade em intel na população  está dentro do intervalo de confiança [0.994535654	1.12078294] com probabilidade de 95%IC.
-
-Um aumento de uma unidade na variável Int_corr, o ODDS é multiplicado por aproximadamente 1.1316, ou seja, a proporção entre a probabilidade de Match, quando int_corr aumenta em uma unidade, e a probabilidade de não Match é 1.1316.Esse impacto na população pode-se ser visto por meio do intervalo de confiança para (B3), que é o parâmetro populacional. Isto é, o impacto no ODDS devido um aumento de uma unidade em int_corr na população  está dentro do intervalo de confiança [0.910477821	1.40703621] com probabilidade de 95%IC.
+-dec`, que diz se houve match entre os dois participantes do encontro -- isso é: ambos disseram que gostariam de se encontrar novamente depois
+- attr : quão atraente p1 achou p2
+- intel : quão inteligente p1 achou p2    
+- int_corr : correlação entre os interesses de p1 e p2
+- sinc : quão sincero p1 achou p2
 
 
-Um aumento de uma unidade na variável Sinc, o ODDs é multiplicado por aproximadamente 1.0031, ou seja, a proporção entre a probabilidade de Match, quando sinc aumenta em uma unidade, e a probabilidade de não Match é 1.0031.Esse impacto na população pode-se ser visto por meio do intervalo de confiança para (B4), que é o parâmetro populacional. Isto é, o impacto no ODDS devido um aumento de uma unidade em sinc  está dentro do intervalo de confiança [0.951856513	1.05729538] com probabilidade de 95%IC.
+Especialmente, atente para uma coluna chamada `dec`, que diz se houve match entre os dois participantes do encontro -- isso é: ambos disseram que gostariam de se encontrar novamente depois: https://github.com/nazareno/ciencia-de-dados-1/blob/master/5-regressao/speed-dating/speed-dating2.csv
 
+Sua missão é utilizar regressão logística em um conjunto de variáveis explicativas que você escolher (com no mínimo 4 variáveis e sem usar as variáveis like e prob) para responder o seguinte com esses dados em um RMarkdown:
 
-A regressão não mostrou um bom ajuste aos dados, pois o R ao quadrado, estimado por McFadden, foi de 0,1981354, ou seja, as variáveis apenas explicou aproximadamente 0,1981% do ODDS.
+Que fatores nos dados têm efeito relevante na chance do casal ter um match? Descreva se os efeitos são positivos ou negativos e sua magnitude.
 
+Lembre que temos apenas uma amostra de encontros. Faça inferência para suas conclusões. 
 
+Lembre de fazer um descritivo das variáveis antes, e de escrever o relatório de maneira que alguém que saiba sobre regressão mas não sabe nada sobre os dados entenda.
