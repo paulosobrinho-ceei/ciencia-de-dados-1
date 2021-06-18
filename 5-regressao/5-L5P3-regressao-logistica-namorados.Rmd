@@ -1,0 +1,134 @@
+---
+title: "Regressão Logistica"
+author: "Material extraido Nazareno Andrade"
+output:
+  html_document:
+    df_print: paged
+---
+
+# Regressão Logística Múlipla
+
+```{r include=FALSE, warning=FALSE}
+library(pscl)
+library(tidyverse)
+library(tidymodels)
+library(modelr) 
+library(purrr)
+
+theme_set(theme_bw())
+```
+
+
+**L5P3: Regressão romântica**
+
+---
+
+Nesta análise envolvendo Regressão Logística Múlipla foi utilizado dados românticos descritos e disponíveis no link <https://github.com/nazareno/ciencia-de-dados-1/tree/master/5-regressao/speed-dating>.
+
+No qual o campo  dec diz se houve combinação entre os dois participantes do encontro, ou seja, se os mesmo gostariam encontrarem-se novamente depois, conforme descrito as responstas no link <https://github.com/nazareno/ciencia-de-dados-1/blob/master/5-regressao/speed-dating/speed-dating2.csv>
+
+Para obtenção dos resultados, será utilizar a regressão logística em um conjunto de variáveis explicativas escolhidas e determinadas (com no mínimo 4 variáveis e sem usar as variáveis like e prob) para responder o seguinte com esses dados:
+
+Que fatores nos dados têm efeito relevante na chance do casal ter um match? 
+Se os efeitos são positivos ou negativos e sua magnitude.
+
+Sendo que há apenas uma amostra de encontros no qual será realizado a inferência baseado nas conclusões que serão produzidos. 
+
+---
+
+
+```{r warning=FALSE}
+dados = read_csv("speed-dating/speed-dating2.csv")
+glimpse(dados)
+```
+
+---
+
+ Preparando e filtrando as informações que serão utilizados para a Regressão Logistica Múltipla
+ 
+---
+
+```{r}
+dados_logistica = dados %>%
+  select(-like, -prob ) 
+  
+dados_logistica = dados_logistica %>%
+  filter (is.na(dec) == FALSE, 
+          is.na(attr) == FALSE, 
+          is.na(intel) == FALSE, 
+          is.na(int_corr) == FALSE, 
+          is.na(sinc) == FALSE, 
+          ) %>%
+  mutate(dec_categoria = if_else(dec == "yes", 1, 0 )) %>%
+  select(dec_categoria, dec, attr, intel, int_corr, sinc)
+
+dados_logistica = dados_logistica %>%
+  mutate(dec = as.factor(dec)) # glm que usaremos
+```
+
+---
+
+A seguir são apresentados a visulizar referente a distribuição  das informações dos campos em termos de media, para melhor compreensão se as escolha foi adequada
+
+---
+
+```{r}
+summary(dados_logistica)
+```
+
+
+```{r}
+bm <- glm(dec ~ attr + intel + int_corr + sinc, 
+          data = dados_logistica, 
+          family = "binomial")
+
+tidy(bm, conf.int = TRUE)
+tidy(bm, conf.int = TRUE, exponentiate = TRUE) %>% select(-p.value)
+
+glance(bm)
+pR2(bm)
+```
+
+
+---
+
+Fórmula utilizada:
+
+---
+
+
+---
+
+$\frac{p(dec)}{1 - p(dec)} = e^{b_0} e^{b_1X_1} e^{b_2.X_2} e^{b_3.X_3} e^{b_4.X_4}$
+
+---
+
+
+---
+
+A seguir é apresentado o Gráfico contendo os Intervalos de Confianças (IC) dos campos pesquisados:
+
+---
+
+
+
+```{r}
+tidy(bm, conf.int = TRUE, exponentiate = TRUE) %>% 
+  filter(term != "(Intercept)") %>% 
+  ggplot(aes(x = term, y = estimate, ymin = conf.low, ymax = conf.high)) + 
+  geom_point() + 
+  geom_linerange() + 
+  coord_flip()
+```
+
+
+
+Especialmente, atente para uma coluna chamada `dec`, que diz se houve match entre os dois participantes do encontro -- isso é: ambos disseram que gostariam de se encontrar novamente depois: https://github.com/nazareno/ciencia-de-dados-1/blob/master/5-regressao/speed-dating/speed-dating2.csv
+
+Sua missão é utilizar regressão logística em um conjunto de variáveis explicativas que você escolher (com no mínimo 4 variáveis e sem usar as variáveis like e prob) para responder o seguinte com esses dados em um RMarkdown:
+
+Que fatores nos dados têm efeito relevante na chance do casal ter um match? Descreva se os efeitos são positivos ou negativos e sua magnitude.
+
+Lembre que temos apenas uma amostra de encontros. Faça inferência para suas conclusões. 
+
+Lembre de fazer um descritivo das variáveis antes, e de escrever o relatório de maneira que alguém que saiba sobre regressão mas não sabe nada sobre os dados entenda.

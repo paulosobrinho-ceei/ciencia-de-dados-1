@@ -1,0 +1,364 @@
+---
+title: "regressão logistica"
+author: "Material extraido Nazareno Andrade"
+output: html_notebook
+---
+
+# Regressão Logística
+
+```{r include=FALSE, warning=FALSE}
+library(pscl)
+library(tidyverse)
+library(tidymodels)
+library(modelr) 
+
+theme_set(theme_bw())
+```
+
+
+```{r warning=FALSE}
+titanic <- read_csv("dados/titanic3.csv")
+titanic <- titanic %>% 
+  select(pclass, survived, sex, age, fare) %>%
+  na.omit() %>%
+  mutate(survived = case_when(.$survived == 0 ~ "não", 
+                              .$survived == 1 ~ "sim"), 
+         pclass = as.character(pclass)) 
+
+# ggpairs(titanic, progress = F)
+glimpse(titanic)
+```
+
+```{r}
+titanic %>% 
+  ggplot(aes(x = sex, fill = survived)) + 
+  geom_bar(position = "dodge")
+```
+
+Parece haver uma relação entre fare e survived:
+
+```{r}
+titanic %>% 
+  ggplot(aes(x = survived, y = fare)) + 
+  geom_violin(aes(fill = survived), alpha = .4) + 
+  #geom_boxplot(aes(fill = survived), alpha = .4) + 
+  geom_count() + 
+  #geom_jitter(width = .1, alpha = .3) + 
+  coord_flip() 
+```
+
+A relação é mais visível em escala de log para o fare:
+
+```{r}
+titanic %>% 
+  filter(fare > 0) %>%
+  ggplot(aes(x = survived, y = fare)) + 
+  geom_violin(aes(fill = survived), alpha = .4) + 
+  geom_count(alpha = .5) + 
+  coord_flip() +
+  scale_y_log10() 
+```
+
+Seria possível passar uma regressão linear?
+
+```{r}
+titanic %>% 
+  filter(fare > 0) %>% 
+  ggplot(aes(x = fare, y = survived)) + 
+  scale_x_log10() + 
+  geom_count(alpha = .5) 
+```
+
+# Sobre a função Logística
+
+A logit tem a forma $y = \frac{e^{b_0 + b_1.X_1}}{1 + e^{b_0 + b_1.X_1}}$.
+
+```{r}
+minha_logit = function(b0, b1, x){
+  return(exp(b0 + b1 * x) / (1 + exp(b0 + b1 * x)))
+}
+
+# Um preditor numérico
+x = -20:20
+
+# Usando uma função Logit qualquer
+py_dado_x = minha_logit(1.2, 1.3, x)
+
+data.frame(x, py_dado_x) %>% 
+  ggplot(aes(x, py_dado_x)) + 
+  geom_point() + 
+  geom_line()
+```
+
+```{r}
+py_dado_x = minha_logit(1.2, 1.3, x)
+
+data.frame(x) %>% 
+  mutate(b1_1 = minha_logit(1.2, .5, x), 
+         b1_2 = minha_logit(1.2, 1, x), 
+         b1_3 = minha_logit(1.2, 2, x)) %>% 
+  pivot_longer(cols = (2:4), names_to = "funcao", values_to = "y") %>% 
+  ggplot(aes(x, y, color = funcao)) + 
+  geom_point() + 
+  geom_line()
+
+data.frame(x) %>% 
+  mutate(b0_1 = minha_logit(-2, 1, x), 
+         b0_2 = minha_logit(0, 1, x), 
+         b0_3 = minha_logit(2, 1, x)) %>% 
+  pivot_longer(cols = (2:4), names_to = "funcao", values_to = "y") %>% 
+  ggplot(aes(x, y, color = funcao)) + 
+  geom_point() + 
+  geom_line()
+```
+
+```{r}
+# coeficiente negativo: 
+py_dado_x = minha_logit(1.2, -1.3, x)
+
+data.frame(x, py_dado_x) %>% 
+  ggplot(aes(x, py_dado_x)) + 
+  geom_point() + 
+  geom_line()
+```
+
+## Fit
+
+Há um processo semelhante a OLS para encontrar $b_0$ e $b_1$ em um modelo do tipo `y = exp(b0 + b1 * x) / (1 + exp(b0 + b1 * x))`, ou $y = \frac{e^{b_0 + b_1.X_1}}{1 + e^{b_0 + b_1.X_1}}$.
+
+Ele se chama máxima verossimilhança, ou maximum likelihood. Não vamos discutí-lo em detalhes, mas vale saber que não há forma fechada para os coeficientes, mas há solução eficiente mesmo para muitas variáveis.
+
+## Interpretação
+
+Lembre que temos escrito $y$, mas nossa variável de resposta é $p(y = 1 | x)$, ou seja, a probabilidade de $y=1$ dado o valor de $x$. Para facilitar, vamos escrever $p(x)$ para significar $p(y = 1 | x)$. Se manipularmos $p(x) = \frac{e^{b_0 + b_1.X_1}}{1 + e^{b_0 + b_1.X_1}}$, chegamos facilmente em:
+
+$$
+\frac{p(x)}{1-p(x)} = e^{b_0 + b_1.X_1} = e^{b_0}. e^{b_1.X_1}
+$$ O termo $\frac{p(x)}{1-p(x)}$ tem uma interpretação: ele é o *odds* do evento $y = 1$, que é a razão entre a probabilidade de y ser 1 e de y ser 0 quando x tem um certo valor. Ou "quão maior é a chance de y ser 1 do que ser 0", dado x.
+
+Isso é útil porque $X_1$ tem um efeito interpretável no odds:
+
+$x =0: odds = e^{b_0}. e^{b_1.0} = e^{b_0}\\ x =1: odds = e^{b_0}. e^{b_1.1} = e^{b_0}. e^{b_1}\\ x =2: odds = e^{b_0}. e^{b_1.2} = e^{b_0}. e^{b_1}. e^{b_1}\\$
+
+Ou seja, aumentar uma unidade em $X_1$ multiplica o odds por \$e\^{b_1}\$. Repare que essa **não é** uma interpretação do efeito de \$X_1\$ em \$p(x)\$. A relação entre \$X_1\$ em \$p(x)\$ é mais complexa e não tem uma interpretação mais intuitiva que essa. Por isso tipicamente usamos o odds pra discutir modelos logísticos.
+
+# Modelo univariado no exemplo com o Titanic
+
+A interpretação é semelhante à regressão linear. Exceto que os valores dos coeficientes sem o exp fazem pouco sentido. Aqui é melhor usar a noção de odds ratio. Para isso basta exponenciar os coeficientes encontrados.
+
+```{r}
+titanic_t = titanic %>% 
+  mutate(survived = as.factor(survived)) # glm que usaremos abaixo lida melhor com factor que character
+  
+bm <- glm(survived ~ fare, 
+          data = titanic_t, 
+          family = "binomial")
+
+tidy(bm, conf.int = TRUE) %>% 
+  select(-statistic, -p.value)
+# EXPONENCIANDO:
+tidy(bm, conf.int = TRUE, exponentiate = TRUE) %>% 
+  select(-statistic, -p.value)
+## Como aqui y = exp(b0)*exp(b1*x1), aumentar em uma unidade x, faz com que y seja multiplicado por exp(b1), que é o estimate nessa tabela acima
+
+```
+
+$p(survived = "sim" | fare) = e^{-.79 + .012 * fare}/(1 + e^{-.79 + .012 * fare})$
+
+$\frac{p(survived = "sim" | fare)}{(1 - p(survived = "sim" | fare))} = e^{-.8}.e^{.012 * fare} = 0.44 . 1.01 ^{fare}$
+
+Caso queiramos observar o efeito de $x$ em $p(x)$, isso é menos óbvio porque a relação entre $x$ e $p(x)$ é não linear: o efeito depende dos valores de $x$. A forma de fazer:
+
+```{r}
+teste = data_grid(titanic_t, 
+                  fare = seq_range(fare, 10))
+
+bm %>% 
+  augment(newdata = teste, 
+          type.predict = "response")
+
+```
+
+Não temos R\^2 :(
+
+```{r}
+# Não existe um R^2 aqui
+glance(bm)
+# Pseudo R^2:
+pscl::pR2(bm)
+```
+
+## Visualizando o modelo
+
+```{r}
+bm %>% 
+  augment(titanic_t, type.predict = "response")  %>% 
+  mutate(survivedNum = ifelse(survived == "sim", 1, 0)) %>% 
+  ggplot(aes(x = fare)) + 
+  geom_count(aes(y = survivedNum), alpha = 0.5) + 
+  geom_line(aes(y = .fitted)) + 
+  # scale_x_log10() + 
+  NULL
+```
+
+## Preditor categórico
+
+```{r}
+bm <- glm(survived ~ sex, 
+          data = titanic_t, 
+          family = "binomial")
+tidy(bm, conf.int = TRUE, exponentiate = TRUE)
+glance(bm)
+pR2(bm)
+#summary(bm)
+```
+
+```{r}
+bm %>% 
+  augment(type.predict = "response")  
+```
+
+
+```{r}
+bm %>% 
+  augment(type.predict = "response")  %>% 
+  mutate(survivedNum = ifelse(survived == "sim", 1, 0)) %>% 
+  ggplot(aes(x = sex)) + 
+  geom_count(aes(y = survivedNum), alpha = 0.5) + 
+  geom_point(aes(y = .fitted), color = "orange")
+```
+
+
+# Multivariada:
+
+```{r}
+glimpse(titanic_t)
+```
+
+$p(survived) = \frac{e^{b_0 + b_1.X_1 + b_2.X_2 + b_3.X_3}}{1 + e^{b_0 + b_1.X_1 +  + b_2.X_2 +  b_3.X_3}}$
+
+$\frac{p(survived)}{1 - p(survived)} = e^{b_0} e^{b_1X_1} e^{b_2.X_2} e^{b_3.X_3}$
+
+```{r}
+bm <- glm(survived ~ sex + age + fare, 
+          data = titanic_t, 
+          family = "binomial")
+
+tidy(bm, conf.int = TRUE)
+tidy(bm, conf.int = TRUE, exponentiate = TRUE) %>% select(-p.value)
+
+glance(bm)
+pR2(bm)
+
+```
+
+```{r}
+m = titanic_t %>%
+  data_grid(fare = seq_range(fare, 100), 
+            sex, 
+            age = seq_range(age, 4))
+
+mm = augment(bm, 
+             newdata = m, 
+             type.predict = "response")
+
+ggplot(mm, aes(x = fare, colour = factor(age))) + 
+  geom_line(aes(y = .fitted)) +  
+  facet_grid(.~ reorder(sex, .fitted)) + 
+  scale_color_brewer() +
+  NULL
+
+```
+
+
+
+```{r}
+tidy(bm, conf.int = TRUE, exponentiate = TRUE) %>% 
+  filter(term != "(Intercept)") %>% 
+  ggplot(aes(x = term, y = estimate, ymin = conf.low, ymax = conf.high)) + 
+  geom_point() + 
+  geom_linerange() + 
+  coord_flip()
+```
+
+### Interações
+
+```{r}
+bm2 <- glm(survived ~ pclass + sex + age + sex*age, 
+          data = titanic_t, 
+          family = "binomial")
+
+tidy(bm2, conf.int = TRUE, exponentiate = TRUE)
+pR2(bm2)
+
+bm2 %>% augment(bm2, 
+        newdata = m, 
+        type.predict = "response") %>% 
+  ggplot(aes(x = age, colour = pclass)) + 
+  geom_line(aes(y = .fitted)) +  
+  facet_grid(.~sex) 
+
+
+```
+
+## Outra forma de avaliar é pela precisão:
+
+```{r}
+previsoes = bm %>% 
+  augment(type.predict = "response") %>% 
+  mutate(segundo_modelo = .fitted > .5, 
+         segundo_dados = survived == "sim")
+
+table(previsoes$segundo_modelo, previsoes$segundo_dados)
+xtabs(~ segundo_modelo + segundo_dados, data = previsoes)
+
+require(vcd)
+mosaic(segundo_dados ~ segundo_modelo, data = previsoes, 
+       shade = T)
+```
+
+```{r}
+acuracia <- sum((predictions == titanic_t$true_survivals)) / NROW(predictions)
+acuracia
+
+falsos_positivos = sum((predictions == T & titanic_t$true_survivals == F)) / NROW(predictions)
+falsos_positivos
+
+falsos_negativos = sum((predictions == F & titanic_t$true_survivals == T)) / NROW(predictions)
+falsos_negativos
+```
+
+# Outro exemplo: fit relacionando preferências e gêneros em speed dating
+
+```{r}
+x = read_csv("https://raw.githubusercontent.com/nazareno/ciencia-de-dados-1/master/5-regressao/speed-dating/speed-dating2.csv", col_types = 
+               cols(
+  .default = col_double(),
+  field = col_character(),
+  from = col_character(),
+  career = col_character(),
+  dec = col_character()
+)) %>% 
+  mutate(dec = as.factor(dec), 
+         gender = as.factor(gender))
+
+matches = glm(dec ~ like + prob, 
+                  data = x, 
+                  family = "binomial")
+
+tidy(matches, conf.int = TRUE, exponentiate = TRUE)
+glance(matches)
+pR2(matches)
+
+
+see = data_grid(x,
+                like = seq_range(like, 5), 
+                prob)
+
+matches %>% 
+  augment(newdata = see, type.predict = "response") %>% 
+  ggplot(aes(color = like, x = prob, y = .fitted, group = like)) + 
+  geom_line()
+
+
+```
